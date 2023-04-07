@@ -1,4 +1,5 @@
-# mouse-pipeline
+# SWISC 
+
 Pipeline for sleep-wake, seizures and post-ictal state classification in mice
 
 Brandon J. Harvey, 2023
