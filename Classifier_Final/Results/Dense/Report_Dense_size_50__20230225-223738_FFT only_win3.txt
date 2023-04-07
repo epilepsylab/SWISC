@@ -1,0 +1,60 @@
+
+ Saline-KA Validation Dataset 
+
+              precision    recall  f1-score   support
+
+           0       0.97      0.93      0.95    401214
+           1       0.90      0.93      0.91    254679
+           2       0.72      0.81      0.76     41222
+           3       0.36      0.18      0.24       108
+           4       0.22      0.38      0.28       451
+
+    accuracy                           0.92    697674
+   macro avg       0.63      0.65      0.63    697674
+weighted avg       0.93      0.92      0.93    697674
+
+
+ Saline Control Dataset 
+
+              precision    recall  f1-score   support
+
+           0       0.94      0.95      0.95    150432
+           1       0.94      0.92      0.93    139900
+           2       0.76      0.84      0.80     22862
+           3       0.00      0.00      0.00         0
+           4       0.00      0.00      0.00         0
+
+    accuracy                           0.93    313194
+   macro avg       0.53      0.54      0.54    313194
+weighted avg       0.93      0.93      0.93    313194
+
+
+ Training Dataset 
+
+              precision    recall  f1-score   support
+
+           0       0.95      0.94      0.94    805781
+           1       0.92      0.91      0.92    640281
+           2       0.73      0.84      0.78    105352
+           3       0.31      0.13      0.19       306
+           4       0.30      0.35      0.32      1314
+
+    accuracy                           0.92   1553034
+   macro avg       0.64      0.63      0.63   1553034
+weighted avg       0.92      0.92      0.92   1553034
+
+
+ Train-Test-Val 
+
+              precision    recall  f1-score   support
+
+           0       0.95      0.94      0.95   1357427
+           1       0.92      0.92      0.92   1034860
+           2       0.73      0.83      0.78    169436
+           3       0.26      0.14      0.19       414
+           4       0.27      0.36      0.30      1765
+
+    accuracy                           0.92   2563902
+   macro avg       0.63      0.64      0.63   2563902
+weighted avg       0.92      0.92      0.92   2563902
+

@@ -1,0 +1,59 @@
+
+ Saline-KA Validation Dataset 
+
+              precision    recall  f1-score   support
+
+           0       0.97      0.92      0.94    401217
+           1       0.89      0.94      0.92    254682
+           2       0.75      0.83      0.79     41222
+           3       0.77      0.91      0.83       108
+           4       0.59      0.41      0.48       451
+
+    accuracy                           0.92    697680
+   macro avg       0.79      0.80      0.79    697680
+weighted avg       0.93      0.92      0.92    697680
+
+
+ Saline Control Dataset 
+
+              precision    recall  f1-score   support
+
+           0       0.94      0.95      0.95    150438
+           1       0.95      0.92      0.94    139900
+           2       0.76      0.87      0.81     22862
+           4       0.00      0.00      0.00         0
+
+    accuracy                           0.93    313200
+   macro avg       0.66      0.69      0.67    313200
+weighted avg       0.93      0.93      0.93    313200
+
+
+ Training Dataset 
+
+              precision    recall  f1-score   support
+
+           0       0.95      0.93      0.94    805787
+           1       0.92      0.93      0.92    640281
+           2       0.78      0.86      0.82    105352
+           3       0.86      0.78      0.82       306
+           4       0.66      0.35      0.46      1314
+
+    accuracy                           0.92   1553040
+   macro avg       0.83      0.77      0.79   1553040
+weighted avg       0.93      0.92      0.92   1553040
+
+
+ Train-Test-Val 
+
+              precision    recall  f1-score   support
+
+           0       0.95      0.93      0.94   1357442
+           1       0.92      0.93      0.92   1034863
+           2       0.77      0.86      0.81    169436
+           3       0.83      0.82      0.83       414
+           4       0.64      0.37      0.47      1765
+
+    accuracy                           0.92   2563920
+   macro avg       0.82      0.78      0.79   2563920
+weighted avg       0.93      0.92      0.93   2563920
+

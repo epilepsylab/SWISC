@@ -1,0 +1,58 @@
+
+ Saline-KA Validation Dataset 
+
+              precision    recall  f1-score   support
+
+           0       0.98      0.97      0.97    401214
+           1       0.95      0.96      0.95    254679
+           2       0.87      0.89      0.88     41222
+           3       0.74      0.89      0.81       108
+           4       0.71      0.81      0.76       451
+
+    accuracy                           0.96    697674
+   macro avg       0.85      0.91      0.88    697674
+weighted avg       0.96      0.96      0.96    697674
+
+
+ Saline Control Dataset 
+
+              precision    recall  f1-score   support
+
+           0       0.97      0.97      0.97    150432
+           1       0.97      0.95      0.96    139900
+           2       0.82      0.91      0.86     22862
+
+    accuracy                           0.96    313194
+   macro avg       0.92      0.94      0.93    313194
+weighted avg       0.96      0.96      0.96    313194
+
+
+ Training Dataset 
+
+              precision    recall  f1-score   support
+
+           0       0.98      0.97      0.98    805781
+           1       0.96      0.96      0.96    640281
+           2       0.87      0.94      0.90    105352
+           3       0.81      0.95      0.87       306
+           4       0.83      0.97      0.89      1314
+
+    accuracy                           0.96   1553034
+   macro avg       0.89      0.96      0.92   1553034
+weighted avg       0.97      0.96      0.96   1553034
+
+
+ Train-Test-Val 
+
+              precision    recall  f1-score   support
+
+           0       0.98      0.97      0.98   1357427
+           1       0.96      0.96      0.96   1034860
+           2       0.86      0.92      0.89    169436
+           3       0.79      0.93      0.86       414
+           4       0.80      0.93      0.86      1765
+
+    accuracy                           0.96   2563902
+   macro avg       0.88      0.94      0.91   2563902
+weighted avg       0.96      0.96      0.96   2563902
+
