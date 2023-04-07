@@ -1,6 +1,6 @@
 # mouse-pipeline
 Pipeline for sleep-wake, seizures and post-ictal state classification in mice
-Bradon J. Harvey, 2023
+Brandon J. Harvey, 2023
 
 Please see BioRxiv publication: 
 
