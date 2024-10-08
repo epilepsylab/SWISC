@@ -29,6 +29,7 @@ import gc
 import matplotlib.pyplot as plt
 
 
+
 def progressbar(it, prefix="", size=60, out=sys.stdout): # Python3.6+
     # imbr
     # https://stackoverflow.com/questions/3160699/python-progress-bar/26761413#26761413
@@ -46,7 +47,6 @@ def progressbar(it, prefix="", size=60, out=sys.stdout): # Python3.6+
         yield item
         show(i+1)
 
-
 # This function goes through nested file folders and return all the files as a list
 # THe list is formatted as [complete_path, annotation type folder name, file_name]
 def return_file_list_from_server (server):
@@ -54,10 +54,10 @@ def return_file_list_from_server (server):
     folderlist_server = os.listdir(server)  # get cohort folders
     
     # get all subfolders for annotation types in '/NoNo/, /NoSz/, /SlNo/, /SlSl/ format from Spike2 export'
-    for folder in folderlist_server:
+    for folder in folderlist_server[::-1]:
         # get the type level folder
         types=os.listdir(server+"/"+folder)
-        for annotation_type in types:
+        for annotation_type in types[::-1]:
             type_folder=server+"/"+folder+"/"+annotation_type
             type_folder_file_list=os.listdir(type_folder)
             for mat_file in type_folder_file_list:
@@ -223,7 +223,7 @@ def feature_generation(decimated_array_data):
     f=features_array.transpose(1,2, 0).reshape(sig.shape[0],-1)
     # Get RMS data
     e=calculate_EMG_RMS(sig)
-    b = np.pad(e, pad_width=((0,0),(0,20-e.shape[-1])), mode='constant', constant_values=0)
+    b = np.repeat(e, int(20/e.shape[-1]), axis=-1)
     #Concatenate both features arrays
     x = np.concatenate((f, b), axis=1)
 
@@ -241,8 +241,8 @@ def find_scores(new_dict): # This is code that looks for scoring array
             # print("Found:", match.group())
             # print(np.array(new_dict[k]['codes'][0]).shape)
             Sleep_codes=np.array(new_dict[k]['codes'][0])
-            epoch_ratio=round(target_epoch_count/len(Sleep_codes))
-            sleepEpochsRound=target_epoch_count/epoch_ratio        
+            epoch_ratio=int(round(target_epoch_count/len(Sleep_codes)))
+            sleepEpochsRound=int(target_epoch_count/epoch_ratio)        
     
             a_reshaped = np.repeat(Sleep_codes[:sleepEpochsRound,0],epoch_ratio).reshape(target_epoch_count, 1)
             
@@ -251,13 +251,13 @@ def find_scores(new_dict): # This is code that looks for scoring array
     
 
 # This function saves fully processed data into the provided path
-def save_processed_data(config.decimated_folder_path,file_name, x_data,y_data):
+def save_processed_data(decimated_folder_path,file_name, result,scores):
 
 
-    if type(y_data)==np.ndarray:
-        folder_path = config.decimated_folder_path+'npy_newest_scored/'+'Feats_Fourier_and_PSD/'
+    if type(scores)==np.ndarray:
+        folder_path = decimated_folder_path+'npy_newest_scored/'+'Feats_Fourier_and_PSD/'
     else:
-        folder_path = config.decimated_folder_path+'npy_newest_unscored/'+'Feats_Fourier_and_PSD/'
+        folder_path = decimated_folder_path+'npy_newest_unscored/'+'Feats_Fourier_and_PSD/'
 
     # Create the folder if it doesn't exist
     if not os.path.exists(folder_path):
@@ -265,20 +265,24 @@ def save_processed_data(config.decimated_folder_path,file_name, x_data,y_data):
 
     file_name=file_name.replace(".smrx", "").replace(".mat", "")
     word_list = file_name.split(" ")
-    name_x=f'x_ffnorm {word_list[0]} {word_list[1]}  {word_list[2]} {word_list[3]} {word_list[4]} {word_list[5]}'
     
     name_x=f'x_ffnorm {word_list[4]} {word_list[1]} {word_list[2]} {word_list[0]}'
-
     name_y=f'y_ffnorm {word_list[4]} {word_list[1]} {word_list[2]} {word_list[0]}'
+
     # Full path for the file
     full_path_x = os.path.join(folder_path, name_x)
     full_path_y = os.path.join(folder_path, name_y)
 
 
     # Save the data to the specified file within the new folder
-    np.save(full_path_x, x_data)
-    if type(y_data)==np.ndarray:
-        np.save(full_path_y, y_data)
+    if type(scores)==np.ndarray:
+
+        joined_array=np.concatenate((result,scores),axis=-1)
+        np.save(full_path_x, joined_array)
+
+    else:
+        np.save(full_path_x, result)
+
     dh_name.update(print(f"{file_name} processed and saved"))
 
 def process_and_save(path):# Here the names of files to process are uploaded
@@ -290,13 +294,13 @@ def process_and_save(path):# Here the names of files to process are uploaded
     for file in progressbar(file_names):
         # print(file[0])    
         
-        scored_folder_path = config.decimated_folder_path+'npy_newest_scored/'+'Feats_Fourier_and_PSD/'
-        unscored_folder_path = config.decimated_folder_path+'npy_newest_unscored/'+'Feats_Fourier_and_PSD/'
+        scored_folder_path = decimated_folder_path+'npy_newest_scored/'+'Feats_Fourier_and_PSD/'
+        unscored_folder_path = decimated_folder_path+'npy_newest_unscored/'+'Feats_Fourier_and_PSD/'
 
         file_name=file[2].replace(".smrx", "").replace(".mat", "")
         dh_name.update(f'processing {file_name}')
         word_list = file_name.split(" ")
-        name_x=f'x_ffnorm {word_list[4]} {word_list[1]} {word_list[2]} {word_list[0]}'
+        name_x=f'x_ffnorm {word_list[5]} {word_list[2]} {word_list[3]} {word_list[0]}'
         full_path_scored = os.path.join(unscored_folder_path, name_x+'.npy')
         full_path_unscored = os.path.join(scored_folder_path, name_x+'.npy')
         if os.path.isfile(full_path_unscored) or os.path.isfile(full_path_scored):
@@ -313,6 +317,7 @@ def process_and_save(path):# Here the names of files to process are uploaded
         
         array_epochs=create_epochs(dec_data)
         result= feature_generation(array_epochs)
+        scaled_result=StandardScaler().fit_transform(result)
         scores=find_scores(new_array)
         #scores_data= np.repeat(scores, 4000, axis=2)
         save_processed_data(decimated_folder_path,file[2], result, scores)
