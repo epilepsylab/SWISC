@@ -6,7 +6,10 @@ epoch_length=4
 recording_length_seconds=int(recording_length_hours*3600)
 target_epoch_count=int(recording_length_seconds/epoch_length)
 epoch_samples_dec=int(epoch_length*sampling_freq/10)
+
+
 channels=['ECog','EMG','HPC_L','HPC_R']
+
 zScoreAtDecimation=False
 
 epoch_samples_dec=sampling_freq_dec*epoch_length
