@@ -28,25 +28,6 @@ from IPython.display import display
 import gc
 import matplotlib.pyplot as plt
 
-
-
-def progressbar(it, prefix="", size=60, out=sys.stdout): # Python3.6+
-    # imbr
-    # https://stackoverflow.com/questions/3160699/python-progress-bar/26761413#26761413
-    count = len(it)
-    start = time.time() # time estimate start
-    def show(j):
-        x = int(size*j/count)
-        # time estimate calculation and string
-        remaining = ((time.time() - start) / j) * (count - j)        
-        mins, sec = divmod(remaining, 60) # limited to minutes
-        time_str = f"{int(mins):02}:{sec:03.1f}"
-        dh_progress.update(f"{prefix}[{u'█'*x}{('.'*(size-x))}] {j}/{count} Est wait {time_str}")
-    show(0.1) # avoid div/0 
-    for i, item in enumerate(it):
-        yield item
-        show(i+1)
-
 # This function goes through nested file folders and return all the files as a list
 # THe list is formatted as [complete_path, annotation type folder name, file_name]
 def return_file_list_from_server (server):
@@ -95,7 +76,7 @@ def download_new_file(file_name):
 # And normalizes the data using z-score (if ScoreAtDecimation is labeled as True in the config file)
 def decimate_channel(k, dict):
     channel_data=np.array(dict[k]['values'][0],dtype=np.float32)
-    channel_data=signal.filtfilt(b,a,channel_data,axis=0)
+    channel_data=signal.filtfilt(config.b,config.a,channel_data,axis=0)
     if config.zScoreAtDecimation==True:
         channel_data=(channel_data-np.mean(channel_data))/np.std(channel_data)
 
@@ -116,7 +97,7 @@ def decimate_all_channels(new_array):
     dh_keys.update(f'Keys: {new_array.keys()}')
 
     for k in new_array.keys():
-        for c in channels:
+        for c in config.channels:
             if  c in k: 
                 new_key="dec"+c
                 dec_dict[new_key]=decimate_channel(k, new_array)
@@ -134,13 +115,17 @@ def create_epochs(dec_data):
     
     axis=-1
     l=np.array(dec_data)
+    # Calculate the number samples in whole epochs of epoch_length in the given file
     complete_epochs=config.epoch_samples_dec*np.floor(l.shape[1]/(config.epoch_samples_dec)).astype(int)
+    # Trim any samples over this whole number
     strict_epochs=l[:, :complete_epochs]
+    # Z-score the decimated data
     strict_epochs=zscore(strict_epochs,axis=-1)
 
-    
+    # Calculate the number of epochs of epoch_length in this file
     n_epochs=int(complete_epochs/config.epoch_samples_dec)
-    
+
+    # reshape the array to Epochs, Channels, Samples order
     c_arr = strict_epochs[:, :n_epochs*config.epoch_samples_dec].reshape(4, n_epochs, config.epoch_samples_dec).transpose(1, 0, 2)
     dh_progress.update(f'{c_arr.shape}')
     return c_arr
@@ -188,7 +173,7 @@ def feature_generation(decimated_array_data):
 
     #Perform PSD transformation
     # get broadband PSD magnitude in bin 2-55 Hz for normalization
-    f, psd=signal.welch(sig, sampling_freq_dec, axis=-1)
+    f, psd=signal.welch(sig, config.sampling_freq_dec, axis=-1)
     broadband_psd=np.mean(psd[:, :, 2:55], axis=-1)
 
 
@@ -223,9 +208,11 @@ def feature_generation(decimated_array_data):
     f=features_array.transpose(1,2, 0).reshape(sig.shape[0],-1)
     # Get RMS data
     e=calculate_EMG_RMS(sig)
-    b = np.repeat(e, int(20/e.shape[-1]), axis=-1)
+
+    # If EMG is sampled at <20 seconds, repeat values such that there are 20 total values to fit indices 20 final indices
+    emg = np.repeat(e, int(20/e.shape[-1]), axis=-1)
     #Concatenate both features arrays
-    x = np.concatenate((f, b), axis=1)
+    x = np.concatenate((f, emg), axis=1)
 
     return x
 
@@ -241,10 +228,10 @@ def find_scores(new_dict): # This is code that looks for scoring array
             # print("Found:", match.group())
             # print(np.array(new_dict[k]['codes'][0]).shape)
             Sleep_codes=np.array(new_dict[k]['codes'][0])
-            epoch_ratio=int(round(target_epoch_count/len(Sleep_codes)))
-            sleepEpochsRound=int(target_epoch_count/epoch_ratio)        
+            epoch_ratio=int(round(config.target_epoch_count/len(Sleep_codes)))
+            sleepEpochsRound=int(config.target_epoch_count/epoch_ratio)        
     
-            a_reshaped = np.repeat(Sleep_codes[:sleepEpochsRound,0],epoch_ratio).reshape(target_epoch_count, 1)
+            a_reshaped = np.repeat(Sleep_codes[:sleepEpochsRound,0],epoch_ratio).reshape(config.target_epoch_count, 1)
             
             
     return a_reshaped
@@ -255,9 +242,9 @@ def save_processed_data(decimated_folder_path,file_name, result,scores):
 
 
     if type(scores)==np.ndarray:
-        folder_path = decimated_folder_path+'npy_newest_scored/'+'Feats_Fourier_and_PSD/'
+        folder_path = config.decimated_folder_path+'npy_newest_scored/'+'Feats_Fourier_and_PSD/'
     else:
-        folder_path = decimated_folder_path+'npy_newest_unscored/'+'Feats_Fourier_and_PSD/'
+        folder_path = config.decimated_folder_path+'npy_newest_unscored/'+'Feats_Fourier_and_PSD/'
 
     # Create the folder if it doesn't exist
     if not os.path.exists(folder_path):
@@ -287,20 +274,34 @@ def save_processed_data(decimated_folder_path,file_name, result,scores):
 
 def process_and_save(path):# Here the names of files to process are uploaded
 # THe list is formatted as [complete_path, annotation type folder name, file_name]
+    
+    # Globals for display handlers to monitor progress and output updating progress bars.
+    global dh_name, dh_keys,dh_error, dh_progress
 
+    # Display handlers for file, keys, errors, and progress bars
+    dh_name = display(f'Item: ',display_id=True)
+    dh_keys = display(f'Keys: ',display_id=True)
+    dh_error = display(f'',display_id=True)
+    dh_progress = display(f'',display_id=True)
 
-    file_list=return_file_list_from_server(path)
+    # Get files from designated path
+    file_list = return_file_list_from_server(config.path)
     file_names = file_list
     for file in progressbar(file_names):
-        # print(file[0])    
-        
-        scored_folder_path = decimated_folder_path+'npy_newest_scored/'+'Feats_Fourier_and_PSD/'
-        unscored_folder_path = decimated_folder_path+'npy_newest_unscored/'+'Feats_Fourier_and_PSD/'
 
+        # Establish names for Fourier transformed files
+        scored_folder_path = config.decimated_folder_path+'npy_newest_scored/'+'Feats_Fourier_and_PSD/'
+        unscored_folder_path = config.decimated_folder_path+'npy_newest_unscored/'+'Feats_Fourier_and_PSD/'
+
+        # Strip existing filetypes from file name, display it
         file_name=file[2].replace(".smrx", "").replace(".mat", "")
         dh_name.update(f'processing {file_name}')
+
+        # Use existing file name to get fourier transformed file name
         word_list = file_name.split(" ")
         name_x=f'x_ffnorm {word_list[5]} {word_list[2]} {word_list[3]} {word_list[0]}'
+
+        # If file is already scored with designated name, skip
         full_path_scored = os.path.join(unscored_folder_path, name_x+'.npy')
         full_path_unscored = os.path.join(scored_folder_path, name_x+'.npy')
         if os.path.isfile(full_path_unscored) or os.path.isfile(full_path_scored):
@@ -319,8 +320,7 @@ def process_and_save(path):# Here the names of files to process are uploaded
         result= feature_generation(array_epochs)
         scaled_result=StandardScaler().fit_transform(result)
         scores=find_scores(new_array)
-        #scores_data= np.repeat(scores, 4000, axis=2)
-        save_processed_data(decimated_folder_path,file[2], result, scores)
+        save_processed_data(config.decimated_folder_path,file[2], result, scores)
         gc.collect()
         time.sleep(.1)
    
