@@ -15,6 +15,7 @@ from scipy import signal
 from scipy.signal import butter, filtfilt, decimate
 from scipy.io import loadmat
 from scipy.stats import zscore
+from sklearn.preprocessing import StandardScaler
 
 # future engeneering packages
 
