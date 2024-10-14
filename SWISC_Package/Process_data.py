@@ -1,3 +1,42 @@
+"""This part of the package processes all the recording data and 
+saves processed files as x and y numpy archives. Here full set of features
+is implemented, but, if necessary other feature engeneering steps can be added"""
+
+# import housekeeping files
+
+import os
+import re
+import sys
+
+import time
+
+# data processing packages
+import hdf5storage
+import pandas as pd
+import numpy as np
+import neo
+# signal processing packages
+
+from scipy import signal
+from scipy.signal import butter, filtfilt, decimate
+from scipy.io import loadmat
+from scipy.stats import zscore
+
+# future engeneering packages
+
+import pyfftw
+from scipy.stats import kurtosis       # kurtosis function
+from scipy.stats import skew           # skewness function
+from sklearn.preprocessing import normalize, StandardScaler
+
+
+# config file has all the processing parameters for the data files
+import config
+import unit_tests
+from IPython.display import display
+import gc
+import matplotlib.pyplot as plt
+
 def progressbar(it, prefix="", size=60, out=sys.stdout): # Python3.6+
     # imbr
     # https://stackoverflow.com/questions/3160699/python-progress-bar/26761413#26761413
@@ -102,7 +141,7 @@ def decimate_all_channels(new_array):
     
     for index, input, target in zip( range(len(config.input_channels) ),config.input_channels,config.target_channels):
         
-        match_key=list(k for k in new_array.keys() if target in k)[0]
+        match_key=list(k for k in new_array.keys() if input in k)[0]
         dec_dict[target]=decimate_channel(match_key, new_array)
         
                 
@@ -314,18 +353,24 @@ def process_and_save(path):# Here the names of files to process are uploaded
 
         new_array=download_new_file(file[0])
     
-
+        
 
         """Here the uploaded file is ordered and decimated and converted to numpy array"""
         dec_data=decimate_all_channels(new_array)
 
+        if unit_tests.run_all_tests(dec_data):
+        
         # For annotated data y is found and data is transformed into epochs
         
-        array_epochs=create_epochs(dec_data)
-        result= feature_generation(array_epochs)
-        scaled_result=StandardScaler().fit_transform(result)
-        scores=find_scores(new_array)
-        save_processed_data(config.decimated_folder_path,file[2], result, scores)
+            array_epochs=create_epochs(dec_data)
+            result= feature_generation(array_epochs)
+            scaled_result=StandardScaler().fit_transform(result)
+            scores=find_scores(new_array)
+            save_processed_data(config.decimated_folder_path,file[2], result, scores)
+
+        else:
+            dh_error.update(f'Error processing {file_name}, check log.txt')
+            continue
         gc.collect()
         time.sleep(.1)
    
