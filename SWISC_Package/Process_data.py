@@ -1,35 +1,3 @@
-import os
-import re
-import sys
-
-import time
-
-# data processing packages
-import hdf5storage
-import pandas as pd
-import numpy as np
-import neo
-# signal processing packages
-
-from scipy import signal
-from scipy.signal import butter, filtfilt, decimate
-from scipy.io import loadmat
-from scipy.stats import zscore
-from sklearn.preprocessing import StandardScaler
-
-# future engeneering packages
-
-import pyfftw
-from scipy.stats import kurtosis       # kurtosis function
-from scipy.stats import skew           # skewness function
-
-# config file has all the processing parameters for the data files
-import config
-from IPython.display import display
-import gc
-import matplotlib.pyplot as plt
-
-
 def progressbar(it, prefix="", size=60, out=sys.stdout): # Python3.6+
     # imbr
     # https://stackoverflow.com/questions/3160699/python-progress-bar/26761413#26761413
@@ -112,14 +80,31 @@ def decimate_channel(k, dict):
 # And returns a numpy array for all channels in orfder specified by "channels" list in conifg file
 
 def decimate_all_channels(new_array):
-    dec_dict={}
-    dh_keys.update(f'Keys: {new_array.keys()}')
+    # dec_dict={}
+    # dh_keys.update(f'Keys: {new_array.keys()}')
 
-    for k in new_array.keys():
-        for c in config.channels:
-            if  c in k: 
-                new_key="dec"+c
-                dec_dict[new_key]=decimate_channel(k, new_array)
+    # for k in new_array.keys():
+    #     for c in config.channels:
+    #         if  c in k: 
+    #             new_key="dec"+c
+    #             dec_dict[new_key]=decimate_channel(k, new_array)
+                
+    # min_channel_samples=len(min(dec_dict.values(), key=len))
+
+    # flattened_arrays = [np.array(value).flatten()[:min_channel_samples] for value in dec_dict.values()]
+    
+    
+    # l=np.array(flattened_arrays)
+
+    dec_dict={}
+    dh_keys.update(f'Existing Keys: {new_array.keys()}')
+    dh_keys.update(f'Existing Keys: {new_array.keys()}, New Keys: {config.target_channels}')
+    
+    for index, input, target in zip( range(len(config.input_channels) ),config.input_channels,config.target_channels):
+        
+        match_key=list(k for k in new_array.keys() if target in k)[0]
+        dec_dict[target]=decimate_channel(match_key, new_array)
+        
                 
     min_channel_samples=len(min(dec_dict.values(), key=len))
 
@@ -128,6 +113,7 @@ def decimate_all_channels(new_array):
     
     l=np.array(flattened_arrays)
     return l
+
 
 #Ths function reshapes the aray creating 2160 epochs with 4000 recordings (20s) each
 def create_epochs(dec_data):
