@@ -133,10 +133,25 @@ class ConfigEditorApp:
                 f.write(f"recording_length_hours = {new_recording_length_hours}\n")
                 f.write(f"sampling_freq = {new_sampling_freq}\n")
                 f.write(f"epoch_length = {new_epoch_length}\n")
-                f.write(f"decimated_folder_path = '{new_decimated_folder}'\n")
+
+                f.write(f"recording_length_seconds = {int(new_recording_length_hours*3600)}\n")
+                f.write(f"target_epoch_count= {int(new_recording_length_hours*3600/new_epoch_length)}\n")
+                f.write(f"sampling_freq_dec = {int(new_sampling_freq/10)}\n")
+                f.write(f"epoch_samples_dec = '{int(new_sampling_freq*new_epoch_length/10)}'\n")
+
+             
                 f.write(f"processed_data_folder_path = '{new_processed_data_folder}'\n")
                 f.write(f"channels = {new_channels}\n")
                 f.write(f"full_features_length = {new_full_features_length}\n")
+
+                #recording_length_seconds=int(recording_length_hours*3600)
+#target_epoch_count=int(recording_length_seconds/epoch_length)
+# sampling_freq_dec=int(sampling_freq/10)    
+# epoch_samples_dec=sampling_freq_dec*epoch_length 
+
+
+                
+              
 
             messagebox.showinfo("Config Saved", "Configuration saved successfully!")
 
