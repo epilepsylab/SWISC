@@ -328,29 +328,32 @@ def process_and_save(path):
     # These are cosequtive steps to process data
         new_array=download_new_file(file)
         dec_data, min_full_epochs=decimate_all_channels(new_array)
-        z_scored_data=zscore_all_channels(dec_data)
-        array_epochs=create_epochs(z_scored_data)
-        result= feature_generation(array_epochs)    
-        scaled_result=StandardScaler().fit_transform(result)
-    # try to find scores
-        try:
-            scores=find_scores(new_array, min_full_epochs)
-            folder="Processed_Scored/"
-            save_processed_data(file_name, folder, result,scores)
-            if config.save_decimated==True:
-                folder="Z_Decimated_Scored/"
-                dec_flat=np.array([dec_data[row] for row in config.target_channels])
-                save_processed_data(file_name, folder, dec_flat,np.repeat(scores, config.epoch_samples_dec) )
-        
-        except Exception as e:
-            print(f"No score found for file {file}, error {e}")
-            folder="Processed_Unscored/"
-            save_processed_data(file_name, folder, result)
-            if config.save_decimated==True:
-                folder="Z_Decimated_Unscored/"
-                dec_flat=np.array([dec_data[row] for row in config.target_channels])
-                save_processed_data(file_name, folder, dec_flat)
-        
+        if unit_tests.run_all_tests(dec_data):
+            z_scored_data=zscore_all_channels(dec_data)
+            array_epochs=create_epochs(z_scored_data)
+            result= feature_generation(array_epochs)    
+            scaled_result=StandardScaler().fit_transform(result)
+        # try to find scores
+            try:
+                scores=find_scores(new_array, min_full_epochs)
+                folder="Processed_Scored/"
+                save_processed_data(file_name, folder, result,scores)
+                if config.save_decimated==True:
+                    folder="Z_Decimated_Scored/"
+                    dec_flat=np.array([dec_data[row] for row in config.target_channels])
+                    save_processed_data(file_name, folder, dec_flat,np.repeat(scores, config.epoch_samples_dec) )
+            
+            except Exception as e:
+                print(f"No score found for file {file}, error {e}")
+                folder="Processed_Unscored/"
+                save_processed_data(file_name, folder, result)
+                if config.save_decimated==True:
+                    folder="Z_Decimated_Unscored/"
+                    dec_flat=np.array([dec_data[row] for row in config.target_channels])
+                    save_processed_data(file_name, folder, dec_flat)
+        else:
+            dh_error.update(f'Error processing {file_name}, check log.txt')
+            continue
         print(f"Finished file {i} from {len(file_names)} files")   
         i+=1
         
