@@ -31,7 +31,8 @@ from IPython.display import display
 import gc
 import matplotlib.pyplot as plt
 
-
+import unit_tests
+import log_console
 
 import os
 from glob import glob
@@ -56,23 +57,25 @@ def return_file_list_from_server(input_path):
 
 def extract_metadata(file_name):
     file_name = file_name.replace(".smrx", "").replace(".mat", "")
-    file_parts = file_name.split('/')
+    file_parts = file_name.split('\\')
+    print(file_parts)
+    # Extracting type, mouse, and other parts from the final part of the filename
+    cohort = file_parts[-2] # NPM661-664
 
+    last_part = file_parts[-1].split()
+    print(last_part)
     # Step 2: Extract the needed parts
     # Cohort is in the part before the  folder (or type folder), so we split by spaces and slashes to extract
-    cohort = file_parts[-3] # NPM661-664
-    annotation=file_parts[-2]  #'SlSz'
-        
-    # Extracting type, mouse, and other parts from the final part of the filename
-    last_part = file_parts[-1].split()
-
+    annotation=last_part[-1]  #'SlSz'
+    #     name_x=f'x_ffnorm {word_list[5]} {word_list[2]} {word_list[3]} {word_list[0]}'
     # Step 3: Extract Metadata
     metadata = {
-        'Cohort': cohort,                  # 'NPM661-664'
+        'Cohort': last_part[0],                  # 'NPM661-664'
         'Mouse': last_part[3],             # 'm1'
         'Annotation Type': annotation,              # 'SlSz'
         'Date': last_part[1],              # '210712'
         'Time': last_part[2],              # '191029_056'
+        'Animal Num': last_part[-2] # 'NPM661'
     }
 
     # Printing the metadata dictionary
@@ -109,7 +112,6 @@ def decimate_channel(k, dict, a, b):
     channel_data=np.array(dict[k]['values'][0],dtype=np.float32)
     channel_data=signal.filtfilt(b,a,channel_data,axis=0)
 
-
     if 'ECog' in k:
         order=2
     else:
@@ -125,6 +127,8 @@ def decimate_channel(k, dict, a, b):
 def decimate_all_channels(new_array):
     dec_dict={}
     b,a=signal.butter(1,[1],'high', fs=config.sampling_freq)
+    # b,a=signal.butter(1,[1,100],'band', fs=config.sampling_freq)
+
     #dh_keys.update(f'Keys: {new_array.keys()}')
 
     for index, input, target in zip( range(len(config.input_channels) ),config.input_channels,config.target_channels):
@@ -234,41 +238,46 @@ def feature_generation(decimated_array_data):
                             ])
     # CHange the shape of the array, adding the columns of all four channels as rows
     f=features_array.transpose(1,2, 0).reshape(sig.shape[0],-1)
-    # Get RMS data
-    e=calculate_EMG_RMS(sig)
-    b = np.repeat(e, int(20/e.shape[-1]), axis=-1)
-    #Concatenate both features arrays
-    x = np.concatenate((f, b), axis=1)
     
-    return x
+    if 'EMG' in config.input_channels:
+        # Get RMS data
+        e=calculate_EMG_RMS(sig)
+        b = np.repeat(e, int(20/e.shape[-1]), axis=-1)
+        #Concatenate both features arrays
+        f = np.concatenate((f, b), axis=1)
+    
+    return f
 
 # This function looks for scoring data in the dictionary created from uploaded matlab data and reshape it to 
 # concatenate it with the rest of decimated data
 
-def find_scores(new_dict): # This is code that looks for scoring array
+def find_scores(new_dict, min_full_epochs): # This is code that looks for scoring array
 
     # If scores are not indexed as they are in SWISC, subtract so lowest value is 0
     reindex=min(config.input_scores)-min(config.target_scores)
-        
-    for k in new_dict.keys():
-        # Find channel which is designated as sleep channel
-        pattern = r'(?i)sl'
-        match = re.search(pattern, k)
-        if match:
-            print("Found:", match.group())
-            # Grab sleep codes from dictionary
-            Sleep_codes=np.array(new_dict[k]['codes'][0])
-            # Use only sleep codes which evenly match the desired recording length and original scoring epoch length
-            Sleep_codes_match=Sleep_codes[:config.original_scoring_epoch_total,0]
-            # If epoch length for evaluation is smaller than the scoring epoch length, upsample the original scores
-            epoch_ratio=config.target_epoch_count//config.original_scoring_epoch_total
-            # If epoch length the same, repeat will be 1, and it will not repeat
-            scores = np.repeat(Sleep_codes_match,epoch_ratio).reshape(config.target_epoch_count, 1)
-            # Reindex the scores to SWISC's 0-4 output
-            scores_reindex = scores-reindex
-            return scores_reindex
-
-    return
+    try: 
+        for k in new_dict.keys():
+            # Find channel which is designated as sleep channel
+            pattern = r'(?i)sl'
+            match = re.search(pattern, k)
+            if match:
+                print("Found:", match.group())
+                # Grab sleep codes from dictionary
+                Sleep_codes=np.array(new_dict[k]['codes'][0])
+                # Use only sleep codes which evenly match the desired recording length and original scoring epoch length
+                # Sleep_codes_match=Sleep_codes[:config.original_scoring_epoch_total,0]
+                
+                Sleep_codes_match=Sleep_codes[:config.original_scoring_epoch_total,0]
+                
+                # If epoch length for evaluation is smaller than the scoring epoch length, upsample the original scores
+                epoch_ratio=config.target_epoch_count//config.original_scoring_epoch_total
+                # If epoch length the same, repeat will be 1, and it will not repeat
+                scores = np.repeat(Sleep_codes_match,epoch_ratio).reshape(config.target_epoch_count, 1)
+                # Reindex the scores to SWISC's 0-4 output
+                scores_reindex = scores-reindex
+                return scores_reindex
+    except:
+        return None
             
     
 
@@ -288,7 +297,7 @@ def save_processed_data(file_name, folder, x_data, y_data=None ):
     np.save(os.path.join(folder_path, file_name), results)
 
 def make_filename(meta):
-    return f" {meta['Cohort']}_{meta['Mouse']}_{meta['Date']}_{meta['Time']}"
+    return f" {meta['Cohort']}_{meta['Mouse']}_{meta['Animal Num']}_{meta['Date']}_{meta['Time']}_{meta['Annotation Type']}"
         # 'Cohort': cohort,                  # 'NPM661-664'
         # 'Mouse': last_part[3],             # 'm1'
         # 'Annotation Type': last_part[4],              # 'SlSz'
@@ -325,34 +334,45 @@ def process_and_save(path):
     # all the file metadata is extracted into meta_dict
         meta_dict=extract_metadata(file)
         file_name=make_filename(meta_dict)
+        if os.path.exists(config.processed_data_folder_path+file_name+'.npy')==False:
+            log_console.log_message(f'{file_name} does not exist, processing', log_console.log_file_path)
+            pass
+        else:
+            log_console.log_message(f'{file_name} already exists', log_console.log_file_path)
+            i+=1
+            continue
     # These are cosequtive steps to process data
         new_array=download_new_file(file)
         dec_data, min_full_epochs=decimate_all_channels(new_array)
+        print(f'min full epochs: {min_full_epochs}')
         if unit_tests.run_all_tests(dec_data):
             z_scored_data=zscore_all_channels(dec_data)
             array_epochs=create_epochs(z_scored_data)
             result= feature_generation(array_epochs)    
             scaled_result=StandardScaler().fit_transform(result)
         # try to find scores
-            try:
-                scores=find_scores(new_array, min_full_epochs)
-                folder="Processed_Scored/"
-                save_processed_data(file_name, folder, result,scores)
-                if config.save_decimated==True:
-                    folder="Z_Decimated_Scored/"
-                    dec_flat=np.array([dec_data[row] for row in config.target_channels])
-                    save_processed_data(file_name, folder, dec_flat,np.repeat(scores, config.epoch_samples_dec) )
-            
-            except Exception as e:
-                print(f"No score found for file {file}, error {e}")
+            scores=find_scores(new_array,min_full_epochs)
+            if scores is None:
+                print(f"No score found for file {file}")
                 folder="Processed_Unscored/"
-                save_processed_data(file_name, folder, result)
+                folder=""
+                save_processed_data(file_name, folder, scaled_result)
                 if config.save_decimated==True:
                     folder="Z_Decimated_Unscored/"
                     dec_flat=np.array([dec_data[row] for row in config.target_channels])
                     save_processed_data(file_name, folder, dec_flat)
+            
+            else:
+                folder="Processed_Scored/"
+                folder=""
+                save_processed_data(file_name, folder, scaled_result,scores)
+                if config.save_decimated==True:
+                    folder="Z_Decimated_Scored/"
+                    dec_flat=np.array([dec_data[row] for row in config.target_channels])
+                    save_processed_data(file_name, folder, dec_flat,np.repeat(scores, config.epoch_samples_dec) )
+
         else:
-            dh_error.update(f'Error processing {file_name}, check log.txt')
+            print(f'Error processing {file_name}, check log.txt')
             continue
         print(f"Finished file {i} from {len(file_names)} files")   
         i+=1
