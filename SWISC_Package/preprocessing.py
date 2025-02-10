@@ -117,7 +117,7 @@ def decimate_channel(k, dict, a, b):
     else:
         order=8
     
-    dec_record=np.array(signal.decimate(channel_data, 10, n=order, ftype='iir',axis=0,zero_phase=True),dtype=np.float32)
+    dec_record=np.array(signal.decimate(channel_data, config.resampling_factor, n=order, ftype='iir',axis=0,zero_phase=True),dtype=np.float32)
 
     return dec_record
 
@@ -239,7 +239,7 @@ def feature_generation(decimated_array_data):
     # CHange the shape of the array, adding the columns of all four channels as rows
     f=features_array.transpose(1,2, 0).reshape(sig.shape[0],-1)
     
-    if 'EMG' in config.input_channels:
+    if 'dec_EMG' in config.target_channels:
         # Get RMS data
         e=calculate_EMG_RMS(sig)
         b = np.repeat(e, int(20/e.shape[-1]), axis=-1)
