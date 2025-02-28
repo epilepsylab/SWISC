@@ -11,15 +11,15 @@ from sklearn.preprocessing import StandardScaler
 from keras.models import clone_model
 
 processed_data_folder_path=config.processed_data_folder_path
-channels_available=" ".join(sorted(config.input_channels))
+channels_available=" ".join(sorted(config.target_channels))
 model_channel_map= {
-    'SWISC EMG HPCL HPCR RMS.h5': ['EMG', 'HPC_L', 'HPC_R'],
-    'SWISC ECoG EMG RMS.h5': ['ECog', 'EMG'],
-    'SWISC EMG RMS.h5': ['EMG'],
-    'SWISC ECoG.h5': ['ECog'],
-    'SWISC 4 Channel and RMS.h5': ['ECog', 'EMG', 'HPC_L', 'HPC_R'],
-    'SWISC HPCL.h5': ['HPC_L'],
-    'SWISC HPCL HPCR.h5': ['HPC_L', 'HPC_R']
+    'SWISC EMG HPCL HPCR RMS.h5': ['dec_EMG', 'dec_HPC_L', 'dec_HPC_R'],
+    'SWISC ECoG EMG RMS.h5': ['dec_ECog', 'dec_EMG'],
+    'SWISC EMG RMS.h5': ['dec_EMG'],
+    'SWISC ECoG.h5': ['dec_ECog'],
+    'SWISC 4 Channel and RMS.h5': ['dec_ECog', 'dec_EMG', 'dec_HPC_L', 'dec_HPC_R'],
+    'SWISC HPCL.h5': ['dec_HPC_L'],
+    'SWISC HPCL HPCR.h5': ['dec_HPC_L', 'dec_HPC_R']
 }
 
 # Function to choose the correct model based on recorded channels from config file
@@ -78,7 +78,7 @@ def load_data(path):
     y = None
     y_predict = None
     
-    if data.shape[1]>100:
+    if data.shape[1]>config.full_features_length:
         
         y = data[:, config.full_features_length]
         
@@ -92,7 +92,7 @@ def load_data(path):
 
 def predict_data(path, model):
     X_predict, y_predict = load_data(path)
-    predictions = model.predict(X_predict)
+    predictions = model.predict(X_predict,verbose=False)
     
     y_pred = np.argmax(predictions, axis=1)
     y_pred_corrected = rechtshaffen(y_pred)
@@ -169,8 +169,8 @@ def model_clone_fit(X_train, y_train, use_weights=True):
         X_train,              # Your input features
         y_train,              # Your target labels
         validation_split=0.2, # Split 20% of the training data for validation
-        epochs=50,            # Number of epochs to train
-        batch_size=32         # Batch size
+        epochs=60,            # Number of epochs to train
+        batch_size=2160         # Batch size
     )
 
     return model, history
@@ -188,6 +188,12 @@ def rechtshaffen(scores):
             if scores[idx]==1:
                 if scores[idx-1]!=1 and scores[idx+1]!=1:
                     scores[idx]=scores[idx-1]
+
+            # In order to score Seizure, there must be 2 consecutive epochs
+            # # or lone Seizure is scored as the previous epoch
+            # if scores[idx]==3:
+            #     if scores[idx-1]!=3 and scores[idx+1]!=1:
+            #         scores[idx]=scores[idx-1]
     return scores
 
 
