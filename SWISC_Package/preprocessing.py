@@ -193,47 +193,71 @@ def calculate_EMG_RMS(decimated_array_data):
 # NOTE: in the original version of the file 108 colums instead of 100 are created
 
 def feature_generation(decimated_array_data):
+   # Decimated Array Data as input
     sig=decimated_array_data
+    
     # Calculate all the datapoints per epoch per channel
+    # Obtain signal length per epoch for FFT parameters
     sig_len=sig.shape[-1]
 
-    #Perform Fourier transformation
-    # get broadband FFT magnitude in bin 2-55 Hz for normalization
-    fourier_space = pyfftw.builders.fft(sig, axis=-1)
-    mag=abs(fourier_space()[:,:,0:sig_len])/sig_len*2
-    broadband=np.mean(mag[:,:,2:55], axis=-1)
-
+    # Decimated Sampling Rate from config
+    fs=config.sampling_freq_dec
+    
+    # Perform Real-Space Fourier transformation using PyFFTW for speed and NP backend
+    fourier_space =  np.fft.rfft(sig, axis=-1)
+    mag=abs(fourier_space[:,:,0:sig_len])/sig_len*2
+    freqs_fft = np.fft.rfftfreq(sig_len, d=1/fs)   # length N//2+1
+    
     #Perform PSD transformation
     # get broadband PSD magnitude in bin 2-55 Hz for normalization
-    f, psd=signal.welch(sig, config.sampling_freq_dec, axis=-1)
-    broadband_psd=np.mean(psd[:, :, 2:55], axis=-1)
-
-
-    #Generate Features array based on transformations data and concatenate it with 
-    # The array with EMG RMS data
-
-    # features_array= np.array([])
+    freqs_psd, psd = signal.welch(sig, config.sampling_freq_dec, axis=-1, nperseg=sig_len)
+    
+    band_labels = ["2–4 Hz", "4–7 Hz", "7–13 Hz", "13–30 Hz", "30–55 Hz", "65–100 Hz","broadband"]
+    band_labels = ['delta','low theta','high theta','beta','low gamma','high gamma','broadband']
+    band_ranges = [(2,4),(4,7),(7,13),(13,30),(30,55),(65,100),(2,55)]
+    
+    band_dict=dict()
+    for band, range in zip(band_labels, band_ranges):
+        band_dict.update({band: range})
+        
+    fft_idx_dict=dict()
+    for band in band_dict:
+        Hzlow,Hzhigh=band_dict[band]
+        fft_idxs = np.where((freqs_fft>=Hzlow)&(freqs_fft<=Hzhigh))[0]
+        fft_idx_dict.update({band: np.arange(min(fft_idxs),max(fft_idxs))})
+    
+    psd_idx_dict=dict()
+    for band in band_dict:
+        Hzlow,Hzhigh=band_dict[band]
+        psd_idxs = np.where((freqs_psd>=Hzlow)&(freqs_psd<=Hzhigh))[0]
+        psd_idx_dict.update({band: np.arange(min(psd_idxs),max(psd_idxs))})
+    
+    # 6) Compute broadband normalizers
+    
+    broadband_fft = np.mean(mag[:, :, fft_idx_dict['broadband']], axis=-1)
+    broadband_psd = np.mean(psd[:, :, psd_idx_dict['broadband']], axis=-1)
+    
     features_array =np.array([np.mean(sig, axis=-1), 
                         np.median(sig, axis=-1), 
                         np.std(sig, axis=-1), 
                         np.var(sig, axis=-1), 
                         skew(sig, axis=-1), 
                         kurtosis(sig, axis=-1), 
-                        np.mean(mag[:, :, 2:4], axis=-1)/broadband,
-                        np.mean(mag[:, :, 4:7], axis=-1)/broadband,
-                        np.mean(mag[:, :, 7:13], axis=-1)/broadband,
-                        np.mean(mag[:, :, 13:30], axis=-1)/broadband,
-                        np.mean(mag[:, :, 30:55], axis=-1)/broadband,
-                        np.mean(mag[:, :,65:100], axis=-1)/broadband,
-                            np.mean(mag[:, :, 2:4], axis=-1)/np.mean(mag[:, :,4:7], axis=-1),
+                        np.mean(mag[:, :, fft_idx_dict['delta']], axis=-1)/broadband_fft,
+                        np.mean(mag[:, :, fft_idx_dict['low theta']], axis=-1)/broadband_fft,
+                        np.mean(mag[:, :, fft_idx_dict['high theta']], axis=-1)/broadband_fft,
+                        np.mean(mag[:, :, fft_idx_dict['beta']], axis=-1)/broadband_fft,
+                        np.mean(mag[:, :, fft_idx_dict['low gamma']], axis=-1)/broadband_fft,
+                        np.mean(mag[:, :,fft_idx_dict['high gamma']], axis=-1)/broadband_fft,
+                            np.mean(mag[:, :, fft_idx_dict['delta']], axis=-1)/np.mean(mag[:, :,fft_idx_dict['low theta']], axis=-1),
                             # broadband,
-                            np.mean(psd[:, :, 2:4], axis=-1)/broadband_psd,
-                            np.mean(psd[:, :, 4:7], axis=-1)/broadband_psd,
-                            np.mean(psd[:, :, 7:13], axis=-1)/broadband_psd,
-                            np.mean(psd[:, :, 13:30], axis=-1)/broadband_psd,
-                            np.mean(psd[:, :, 30:55], axis=-1)/broadband_psd,
-                            np.mean(psd[:, :, 65:100], axis=-1)/broadband_psd,
-                            np.mean(psd[:, :, 2:4], axis=-1)/np.mean(psd[:, :,4:7],axis=-1),
+                            np.mean(psd[:, :, psd_idx_dict['delta']], axis=-1)/broadband_psd,
+                            np.mean(psd[:, :, psd_idx_dict['low theta']], axis=-1)/broadband_psd,
+                            np.mean(psd[:, :, psd_idx_dict['high theta']], axis=-1)/broadband_psd,
+                            np.mean(psd[:, :, psd_idx_dict['beta']], axis=-1)/broadband_psd,
+                            np.mean(psd[:, :, psd_idx_dict['low gamma']], axis=-1)/broadband_psd,
+                            np.mean(psd[:, :, psd_idx_dict['high gamma']], axis=-1)/broadband_psd,
+                            np.mean(psd[:, :, psd_idx_dict['delta']], axis=-1)/np.mean(psd[:, :,psd_idx_dict['low theta']],axis=-1),
                             # broadband_psd
                             ])
     # CHange the shape of the array, adding the columns of all four channels as rows
@@ -248,11 +272,12 @@ def feature_generation(decimated_array_data):
     
     return f
 
+    
 # This function looks for scoring data in the dictionary created from uploaded matlab data and reshape it to 
 # concatenate it with the rest of decimated data
 
 def find_scores(new_dict, min_full_epochs): # This is code that looks for scoring array
-
+    scores_reindex=None
     # If scores are not indexed as they are in SWISC, subtract so lowest value is 0
     reindex=min(config.input_scores)-min(config.target_scores)
     try: 
@@ -292,12 +317,12 @@ def save_processed_data(file_name, folder, x_data, y_data=None ):
         results=np.concatenate((x_data,y_data),axis=-1)      
     else:
         results=x_data
-    
+    print(results.shape)
     os.makedirs(folder_path, exist_ok=True)
     np.save(os.path.join(folder_path, file_name), results)
 
 def make_filename(meta):
-    return f" {meta['Cohort']}_{meta['Mouse']}_{meta['Animal Num']}_{meta['Date']}_{meta['Time']}_{meta['Annotation Type']}"
+    return f"{meta['Cohort']}_{meta['Mouse']}_{meta['Animal Num']}_{meta['Date']}_{meta['Time']}_{meta['Annotation Type']}"
         # 'Cohort': cohort,                  # 'NPM661-664'
         # 'Mouse': last_part[3],             # 'm1'
         # 'Annotation Type': last_part[4],              # 'SlSz'
@@ -324,6 +349,10 @@ def make_filename(meta):
 #     return config.decimated_folder_path,file[2]    
 
 def process_and_save(path):
+    
+    for folder in config.folders:
+        if os.path.exists(folder)==False:
+            os.mkdir(folder)
 
     file_list=return_file_list_from_server(path)
     file_names = file_list
@@ -335,10 +364,10 @@ def process_and_save(path):
         meta_dict=extract_metadata(file)
         file_name=make_filename(meta_dict)
         if os.path.exists(config.processed_data_folder_path+file_name+'.npy')==False:
-            log_console.log_message(f'{file_name} does not exist, processing', log_console.log_file_path)
+            log_console.log_message(f'{file_name} does not exist, processing', config.log_file_path)
             pass
         else:
-            log_console.log_message(f'{file_name} already exists', log_console.log_file_path)
+            log_console.log_message(f'{file_name} already exists', config.log_file_path)
             i+=1
             continue
     # These are cosequtive steps to process data
@@ -349,14 +378,15 @@ def process_and_save(path):
             z_scored_data=zscore_all_channels(dec_data)
             array_epochs=create_epochs(z_scored_data)
             result= feature_generation(array_epochs)    
-            scaled_result=StandardScaler().fit_transform(result)
+            
+            
         # try to find scores
             scores=find_scores(new_array,min_full_epochs)
             if scores is None:
                 print(f"No score found for file {file}")
                 folder="Processed_Unscored/"
                 folder=""
-                save_processed_data(file_name, folder, scaled_result)
+                save_processed_data(file_name, folder, result)
                 if config.save_decimated==True:
                     folder="Z_Decimated_Unscored/"
                     dec_flat=np.array([dec_data[row] for row in config.target_channels])
@@ -365,7 +395,8 @@ def process_and_save(path):
             else:
                 folder="Processed_Scored/"
                 folder=""
-                save_processed_data(file_name, folder, scaled_result,scores)
+                print(scores)
+                save_processed_data(file_name, folder, result,scores)
                 if config.save_decimated==True:
                     folder="Z_Decimated_Scored/"
                     dec_flat=np.array([dec_data[row] for row in config.target_channels])

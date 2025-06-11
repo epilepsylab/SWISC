@@ -158,22 +158,6 @@ def compute_bouts(df):
     df['epoch_length'] = pd.to_timedelta(config.epoch_length, unit='s')    
     
     # by_bout_id=df.groupby(['condition','subject', 'prepost','bout_id','scores']).agg(bout_length=('epoch_length','sum'),year=('year','min'),month=('month','min'),day=('day','min'),hour=('hour','min'),datetime=('datetime','min'))
-    by_bout_id=df.groupby(['condition','subject', 'prepost','bout_id','scores']).agg(bout_length=('epoch_length','sum'),year=('year','min'),month=('month','min'),day=('day','min'),hour=('hour','min'),datetime=('datetime','min'))
-    return df, by_bout_id
-
-def compute_bouts(df):
-    """Compute bout lengths and occurrences."""
-    df['bout_id'] = (df['scores'] != df['scores'].shift()).cumsum()  # Create unique id for each bout
-    # Calculate bout length: account for the final epoch by adding epoch_length to the bout duration
-    # bouts = df.groupby(['subject','datetime','bout_id']).agg(
-    #     datetime=('datetime', 'min'),
-    #     scores=('scores', 'first')
-    # )
-    
-    # Bout length = (bout_end + epoch_length) - bout_start
-    df['epoch_length'] = pd.to_timedelta(config.epoch_length, unit='s')    
-    
-    # by_bout_id=df.groupby(['condition','subject', 'prepost','bout_id','scores']).agg(bout_length=('epoch_length','sum'),year=('year','min'),month=('month','min'),day=('day','min'),hour=('hour','min'),datetime=('datetime','min'))
     by_bout_id=df.groupby(['condition','subject', 'prepost','bout_id','scores','year','month','day','hour']).agg(bout_length=('epoch_length','sum'),datetime=('datetime','min'))
     return df, by_bout_id
 
@@ -291,8 +275,11 @@ def parse_start_times_fast(combined_df, datasetSummary):
     # Create a mapping Series for each condition
     start_time_series = pd.Series(pd.to_datetime(datasetSummary['Condition Start DateTime'].values),
                                  index=datasetSummary['Name'],name='Condition Start DateTime')
+
     recording_time_series = pd.Series(pd.to_datetime(datasetSummary['Start'].values),
                                     index=datasetSummary['Name'],name='Start')
+    recording_end_series = pd.Series(pd.to_datetime(datasetSummary['End'].values),
+                                    index=datasetSummary['Name'],name='End')
     condition_series = pd.Series(datasetSummary['Condition'].values,
                                index=datasetSummary['Name'],name='Condition')
     include_series = pd.Series(datasetSummary['Include'].values,
@@ -326,6 +313,19 @@ def parse_start_times_fast(combined_df, datasetSummary):
          merged_df['datetime'] < merged_df['recording_start']],
         ['Unknown', 'Ante'],
         default='Post'
+    )
+    
+    merged_df = merged_df.merge(
+        recording_end_series.reset_index().rename(
+            columns={'Name': 'subject', 'End': 'recording_end'}),
+        on='subject',
+        how='left'
+    )
+    merged_df['end'] = np.select(
+        [merged_df['recording_end'].isna(),
+         merged_df['datetime'] >= merged_df['recording_end']],
+        ['Unknown', 'End'],
+        default=''
     )
     
     # Add conditions

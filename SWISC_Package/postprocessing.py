@@ -75,6 +75,7 @@ def load_data(path):
     data = np.load(path, allow_pickle=True)
     print(path)
     X = data[:, 0:config.full_features_length]  # Assuming 100 is the column with labels
+    X = StandardScaler().fit_transform(X)
     y = None
     y_predict = None
     
